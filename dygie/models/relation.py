@@ -61,8 +61,14 @@ class RelationExtractor(Model):
         self._candidate_recall = CandidateRecall()
         self._relation_metrics = RelationMetrics()
 
-        class_weights = torch.cat([torch.tensor([1.0]), positive_label_weight * torch.ones(self._n_labels)])
-        self._loss = torch.nn.CrossEntropyLoss(reduction="sum", ignore_index=-1, weight=class_weights)
+        bce = torch.nn.BCEWithLogitsLoss()
+        def masked_loss(logits, labels):
+            mask = ~torch.eq(labels, torch.tensor(-1.0))
+            masked_logits = torch.masked_select(logits, mask)
+            masked_labels = torch.masked_select(labels, mask).double()
+            ret = bce(masked_logits, masked_labels)
+            return ret
+        self._loss = masked_loss
         self.rel_prop = rel_prop
 
         # Relation Propagation
@@ -175,11 +181,10 @@ class RelationExtractor(Model):
     def predict_labels(self, relation_labels, output_dict, metadata):
         relation_scores = output_dict["relation_scores"]
 
-        # Subtract 1 so that the "null" relation corresponds to -1.
-        _, predicted_relations = relation_scores.max(-1)
-        predicted_relations -= 1
+        #predicted_relation_scores, predicted_relations = relation_scores.max(-1)
+        #positives = predicted_relation_scores.gt(0.5)
 
-        output_dict["predicted_relations"] = predicted_relations
+        output_dict["predicted_relations"] = relation_scores
 
         # Evaluate loss and F1 if labels were provided.
         if relation_labels is not None:
@@ -244,12 +249,13 @@ class RelationExtractor(Model):
         for i, j in itertools.product(range(keep), range(keep)):
             span_1 = top_spans[i]
             span_2 = top_spans[j]
-            label = predicted_relations[i, j].item()
-            if label >= 0:
-                label_name = self.vocab.get_token_from_index(label, namespace="relation_labels")
-                res_dict[(span_1, span_2)] = label_name
-                list_entry = (span_1[0], span_1[1], span_2[0], span_2[1], label_name)
-                res_list.append(list_entry)
+            scores = predicted_relations[i, j].tolist()
+            for relation_index, score in enumerate(scores):
+                if score > 0.5:
+                    label_name = self.vocab.get_token_from_index(relation_index, namespace="relation_labels")
+                    res_dict[(span_1, span_2)] = label_name
+                    list_entry = (span_1[0], span_1[1], span_2[0], span_2[1], label_name)
+                    res_list.append(list_entry)
 
         return res_dict, res_list
 
@@ -295,10 +301,10 @@ class RelationExtractor(Model):
         relation_scores += (top_span_mention_scores.unsqueeze(-1) +
                             top_span_mention_scores.transpose(1, 2).unsqueeze(-1))
 
-        shape = [relation_scores.size(0), relation_scores.size(1), relation_scores.size(2), 1]
-        dummy_scores = relation_scores.new_zeros(*shape)
+        #shape = [relation_scores.size(0), relation_scores.size(1), relation_scores.size(2), 1]
+        #dummy_scores = relation_scores.new_zeros(*shape)
 
-        relation_scores = torch.cat([dummy_scores, relation_scores], -1)
+        #relation_scores = torch.cat([dummy_scores, relation_scores], -1)
         return relation_scores
 
     @staticmethod
@@ -327,9 +333,9 @@ class RelationExtractor(Model):
         relations between masked out spans.
         """
         # Need to add one for the null class.
-        scores_flat = relation_scores.view(-1, self._n_labels + 1)
+        #scores_flat = relation_scores.view(-1, self._n_labels + 1)
         # Need to add 1 so that the null label is 0, to line up with indices into prediction matrix.
-        labels_flat = relation_labels.view(-1)
+        #labels_flat = relation_labels.view(-1)
         # Compute cross-entropy loss.
-        loss = self._loss(scores_flat, labels_flat)
+        loss = self._loss(relation_scores, relation_labels)
         return loss

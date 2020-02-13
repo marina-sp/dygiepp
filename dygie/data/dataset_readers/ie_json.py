@@ -9,8 +9,7 @@ from overrides import overrides
 
 from allennlp.common.file_utils import cached_path
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
-from allennlp.data.fields import (Field, ListField, TextField, SpanField, MetadataField,
-                                  SequenceLabelField, AdjacencyField)
+from allennlp.data.fields import (Field, ListField, TextField, SpanField, MetadataField, SequenceLabelField, AdjacencyField)
 from allennlp.data.instance import Instance
 from allennlp.data.tokenizers import Token
 from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
@@ -20,6 +19,7 @@ from allennlp.data.dataset_readers.dataset_utils import Ontonotes, enumerate_spa
 from allennlp.data.fields.span_field import SpanField
 
 from dygie.data.fields.adjacency_field_assym import AdjacencyFieldAssym
+from dygie.data.fields.multitask_adjacency_field import MultiTaskAdjacencyField
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -137,7 +137,7 @@ class IEJsonReader(DatasetReader):
         self._max_span_width = max_span_width
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
         self._debug = debug
-        self._n_debug_docs = 10
+        self._n_debug_docs = 50
         self._predict_hack = predict_hack
 
     @overrides
@@ -180,13 +180,13 @@ class IEJsonReader(DatasetReader):
 
             cluster_dict_doc = make_cluster_dict(js["clusters"])
             #zipped = zip(js["sentences"], js["ner"], js["relations"], js["events"])
-            zipped = zip(js["sentences"], js["ner"], js["relations"], js["events"], js["sentence_groups"], js["sentence_start_index"], js["sentence_end_index"])
+            zipped = zip(js["sentences"], js["ner"], js["relations"], js["events"], js["sentence_groups"], js["sentence_start_index"], js["sentence_end_index"], js["annotatedPredicates"])
 
             # Loop over the sentences.
             if self._predict_hack:
                 instances = []
 
-            for sentence_num, (sentence, ner, relations, events, groups, start_ix, end_ix) in enumerate(zipped):
+            for sentence_num, (sentence, ner, relations, events, groups, start_ix, end_ix, annotated_predicates) in enumerate(zipped):
 
                 sentence_end = sentence_start + len(sentence) - 1
                 cluster_tmp, cluster_dict_doc = cluster_dict_sentence(
@@ -199,7 +199,7 @@ class IEJsonReader(DatasetReader):
                 sentence_start += len(sentence)
                 instance = self.text_to_instance(
                     sentence, ner_dict, relation_dict, cluster_dict, trigger_dict, argument_dict,
-                    doc_key, dataset, sentence_num, groups, start_ix, end_ix)
+                    doc_key, dataset, sentence_num, groups, start_ix, end_ix, annotated_predicates)
 
                 if self._predict_hack:
                     instances.append(instance)
@@ -223,7 +223,8 @@ class IEJsonReader(DatasetReader):
                          sentence_num: int,
                          groups: List[str],
                          start_ix: int,
-                         end_ix: int):
+                         end_ix: int,
+                         annotated_predicates: List[str]):
         """
         TODO(dwadden) document me.
         """
@@ -290,9 +291,9 @@ class IEJsonReader(DatasetReader):
                 relation_indices.append((i, j))
                 relations.append(relation_label)
 
-        relation_label_field = AdjacencyField(
+        relation_label_field = MultiTaskAdjacencyField(
             indices=relation_indices, sequence_field=span_field, labels=relations,
-            label_namespace="relation_labels")
+            label_namespace="relation_labels", annotated_predicates=annotated_predicates)
 
         arguments = []
         argument_indices = []
