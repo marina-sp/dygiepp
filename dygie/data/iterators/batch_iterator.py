@@ -49,7 +49,7 @@ class BatchIterator(DataIterator):
             ixs = np.nonzero(doc_keys == doc)[0].tolist()
             doc_instances = [instances[ix] for ix in ixs]
             sentence_nums = [entry["metadata"]["sentence_num"] for entry in doc_instances]
-            assert sentence_nums == list(range(len(doc_instances)))  # Make sure sentences are in order.
+            #assert sentence_nums == list(range(len(doc_instances)))  # Make sure sentences are in order.
             res.extend(doc_instances)
         assert len(res) == len(instances)
         return res

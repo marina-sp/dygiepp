@@ -63,9 +63,9 @@ class RelationExtractor(Model):
 
         bce = torch.nn.BCEWithLogitsLoss()
         def masked_loss(logits, labels):
-            mask = ~torch.eq(labels, torch.tensor(-1.0))
+            mask = ~torch.eq(labels, -1)
             masked_logits = torch.masked_select(logits, mask)
-            masked_labels = torch.masked_select(labels, mask).double()
+            masked_labels = torch.masked_select(labels, mask).float()
             ret = bce(masked_logits, masked_labels)
             return ret
         self._loss = masked_loss

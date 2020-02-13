@@ -174,6 +174,8 @@ class IEJsonReader(DatasetReader):
                         import ipdb;
             if "clusters" not in js:
                 js["clusters"] = []
+            if "annotatedPredicates" not in js: # assume dataset is exhausitively annotated 
+                js["annotatedPredicates"] = None
             for field in ["ner", "relations", "events"]:
                 if field not in js:
                     js[field] = [[] for _ in range(n_sentences)]
@@ -203,7 +205,7 @@ class IEJsonReader(DatasetReader):
 
                 if self._predict_hack:
                     instances.append(instance)
-                else:
+                elif(len(annotated_predicates) > 0):
                     yield instance
 
             if self._predict_hack:

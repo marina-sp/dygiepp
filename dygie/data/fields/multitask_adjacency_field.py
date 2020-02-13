@@ -104,9 +104,7 @@ class MultiTaskAdjacencyField(Field[torch.Tensor]):
     @overrides
     def index(self, vocab: Vocabulary):
         if self.labels is not None:
-            self._indexed_annotated_predicates = [vocab.get_token_index(label, self._label_namespace) for label in self.annotated_predicates]
-            #for index, label in zip(self.indices, self.labels):
-            #    label_index = vocab.get_token_index(label, self._label_namespace)
+            self._indexed_annotated_predicates = list(range(vocab.get_vocab_size(self._label_namespace))) if self.annotated_predicates is None else [vocab.get_token_index(label, self._label_namespace) for label in self.annotated_predicates] 
             self._indexed_labels = [
                 vocab.get_token_index(label, self._label_namespace) for label in self.labels
             ]
@@ -124,9 +122,7 @@ class MultiTaskAdjacencyField(Field[torch.Tensor]):
 
         # set negatives for ones that were annotated
         for pred in self._indexed_annotated_predicates:
-            for i in range(desired_num_tokens):
-                for j in range(desired_num_tokens):
-                    tensor[i,j,pred] = 0
+            tensor[:,:,pred] = 0
 
         # set positives
         for (i, j), label in zip(self.indices, labels):
