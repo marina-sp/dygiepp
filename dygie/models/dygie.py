@@ -396,3 +396,12 @@ class DyGIE(Model):
                 new_k = "_" + k
                 res[new_k] = v
         return res
+    
+    #@overrides
+    def load(**params):
+        model = super().load(**params)
+
+        # whether in evaluation mode (relevant for relation output and tuning)
+        model._relation._loaded = True
+        return model
+        

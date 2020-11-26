@@ -43,6 +43,8 @@ class RelationExtractor(Model):
 
         # Need to hack this for cases where there's no relation data. It breaks Ulme's code.
         self._n_labels = max(vocab.get_vocab_size("relation_labels"), 1)
+        print("\n\n\n" + str(vocab.get_token_to_index_vocabulary("relation_labels")) + "\n\n\n")
+        self._loaded = False
 
         # Span candidate scorer.
         # TODO(dwadden) make sure I've got the input dim right on this one.
@@ -57,9 +59,13 @@ class RelationExtractor(Model):
 
         self._spans_per_word = spans_per_word
 
+        # todo(marinasp) Parametrize default threshold value.
+        self._thresholds = torch.nn.Parameter(data=torch.FloatTensor([0.5]* self._n_labels),
+                                             requires_grad=False)
+
         # TODO(dwadden) Add code to compute relation F1.
         self._candidate_recall = CandidateRecall()
-        self._relation_metrics = RelationMetrics()
+        self._relation_metrics = RelationMetrics(self._thresholds.data, label_dict=vocab.get_token_to_index_vocabulary("relation_labels"))
 
         bce = torch.nn.BCEWithLogitsLoss()
         def masked_loss(logits, labels):
@@ -96,7 +102,6 @@ class RelationExtractor(Model):
         """
         TODO(dwadden) Write documentation.
         """
-
         output_dict = self.compute_representations(
             spans, span_mask, span_embeddings, sentence_lengths, relation_labels, metadata)
 
@@ -178,6 +183,7 @@ class RelationExtractor(Model):
         output_dict["relation_scores"] = relation_scores
         output_dict["top_span_embeddings"] = top_span_embeddings
         return output_dict
+
     def predict_labels(self, relation_labels, output_dict, metadata):
         relation_scores = output_dict["relation_scores"]
 
@@ -185,6 +191,7 @@ class RelationExtractor(Model):
         #positives = predicted_relation_scores.gt(0.5)
 
         output_dict["predicted_relations"] = relation_scores
+        self.decode(output_dict)
 
         # Evaluate loss and F1 if labels were provided.
         if relation_labels is not None:
@@ -195,7 +202,7 @@ class RelationExtractor(Model):
             cross_entropy = self._get_cross_entropy_loss(relation_scores, gold_relations)
 
             # Compute F1.
-            predictions = self.decode(output_dict)["decoded_relations_dict"]
+            predictions = output_dict["decoded_relations_dict"]
             assert len(predictions) == len(metadata)  # Make sure length of predictions is right.
             self._candidate_recall(predictions, metadata)
             self._relation_metrics(predictions, metadata)
@@ -244,16 +251,21 @@ class RelationExtractor(Model):
         top_spans = [tuple(x) for x in top_spans.tolist()]
 
         # Iterate over all span pairs and labels. Record the span if the label isn't null.
-        res_dict = {}
+        res_dict = defaultdict(list)
         res_list = []
+        
+        # add sigmoid to raw scores 
+        predicted_relations = torch.sigmoid(predicted_relations)
         for i, j in itertools.product(range(keep), range(keep)):
             span_1 = top_spans[i]
             span_2 = top_spans[j]
             scores = predicted_relations[i, j].tolist()
             for relation_index, score in enumerate(scores):
-                if score > 0.5:
-                    label_name = self.vocab.get_token_from_index(relation_index, namespace="relation_labels")
-                    res_dict[(span_1, span_2)] = label_name
+                # move decision boundary to metrics: save all results #  if score > 0.0: # we work on logits here
+                label_name = self.vocab.get_token_from_index(relation_index, namespace="relation_labels")
+                res_dict[(span_1, span_2)].append((label_name, relation_index, score))
+
+                if score > self._thresholds.data[relation_index].item():
                     list_entry = (span_1[0], span_1[1], span_2[0], span_2[1], label_name)
                     res_list.append(list_entry)
 

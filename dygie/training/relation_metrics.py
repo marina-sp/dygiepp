@@ -4,28 +4,64 @@ from allennlp.training.metrics.metric import Metric
 
 from dygie.training.f1 import compute_f1
 
+import numpy as np
+from collections import defaultdict
 
 class RelationMetrics(Metric):
     """
     Computes precision, recall, and micro-averaged F1 from a list of predicted and gold spans.
+    Tune thresholds and updates them in the passed torch.Tensor.
     """
-    def __init__(self):
+    def __init__(self, thresholds, label_dict, default_th=0.5):
+        self._n_labels = len(label_dict)
+        self._label_dict = label_dict
+
+        self._th_def = default_th
+        self._thresholds = thresholds
+        self._threshold_candidates = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+
         self.reset()
 
     @overrides
     def __call__(self, predicted_relation_list, metadata_list):
         for predicted_relations, metadata in zip(predicted_relation_list, metadata_list):
             gold_relations = metadata["relation_dict"]
-            self._total_gold += len(gold_relations)
-            self._total_predicted += len(predicted_relations)
-            for (span_1, span_2), label in predicted_relations.items():
+            for labels in gold_relations.values():
+                for label in labels:
+                    self._gold_per_relation[self._label_dict[label]] += 1
+                    self._total_gold += 1
+
+            # predicted_relations Dict[(Span, Span)] -> List[Tuple(label, score), ...],
+            for (span_1, span_2), label_list in predicted_relations.items():
                 ix = (span_1, span_2)
-                if ix in gold_relations and gold_relations[ix] == label:
-                    self._total_matched += 1
+                if ix in gold_relations:
+                    #print("correct span!", gold_relations[ix], label)
+                    for label, label_idx, score in label_list:
+                        if label in gold_relations[ix]:
+                            true_label = 1
+                        else:
+                            true_label = 0
+                        self._scores_per_relation[label_idx].append((score, true_label))
 
     @overrides
-    def get_metric(self, reset=False):
-        precision, recall, f1 = compute_f1(self._total_predicted, self._total_gold, self._total_matched)
+    def get_metric(self, reset=False, tune=False):
+        if tune and reset:
+            # tune only at the end of epoch
+            print("tuned threshold!")
+            self._tune_threshold()
+
+        total_predicted = 0
+        total_matched = 0
+
+        for label_idx, score_list in self._scores_per_relation.items():
+            if len(score_list) != 0:
+                pred, matched = self._get_matched_counts(score_list, self._thresholds[label_idx].item())
+                total_predicted += pred
+                total_matched += matched
+
+        # feed #Predicted=TP+FP, #Gold=TP+FN, #TP
+        #print(total_predicted, self._total_gold, total_matched)
+        precision, recall, f1 = compute_f1(total_predicted, self._total_gold, total_matched)
 
         # Reset counts if at end of epoch.
         if reset:
@@ -36,8 +72,38 @@ class RelationMetrics(Metric):
     @overrides
     def reset(self):
         self._total_gold = 0
-        self._total_predicted = 0
-        self._total_matched = 0
+        #self._total_predicted = 0
+        #self._total_matched = 0
+
+        # for threshold tuning
+        self._scores_per_relation = {i: [] for i in range(self._n_labels)}
+        self._gold_per_relation = {i: 0 for i in range(self._n_labels)}
+
+    def _get_matched_counts(self, score_list, th_value):
+        all_np = np.array(score_list)
+        scores_np = all_np[:, 0]
+        gold_np = all_np[:, 1].astype(np.bool)
+        predictions = scores_np > th_value
+        matched = predictions & gold_np
+        #print("matched counts: ", predictions.sum(), matched.sum())
+        return predictions.sum(), matched.sum()
+
+    def _tune_threshold(self):
+        for label_idx, score_list in self._scores_per_relation.items():
+            self._thresholds[label_idx] = self._get_threshold(score_list, self._gold_per_relation[label_idx])
+    
+    def _get_threshold(self, score_list, gold_count):
+        best_f1 = 0.0
+        best_th = self._th_def
+
+        if len(score_list) != 0:
+            for th_value in self._threshold_candidates:
+                pred, matched = self._get_matched_counts(score_list, th_value)
+                _, _, f1 = compute_f1(pred, gold_count, matched)
+                if f1 > best_f1:
+                    best_f1 = f1
+                    best_th = th_value
+        return best_th
 
 
 class CandidateRecall(Metric):

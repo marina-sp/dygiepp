@@ -87,12 +87,13 @@ def format_label_fields(ner: List[List[Union[int,str]]],
     )
 
     # Relations
-    relation_dict = MissingDict("",
-        (
-            ((  (span1_start-ss, span1_end-ss),  (span2_start-ss, span2_end-ss)   ), relation)
-            for (span1_start, span1_end, span2_start, span2_end, relation) in relations
-        )
-    )
+    relation_dict = MissingDict([], [])
+
+    for (span1_start, span1_end, span2_start, span2_end, relation) in relations:
+        key = ((span1_start-ss, span1_end-ss),  (span2_start-ss, span2_end-ss))
+        if key not in relation_dict:
+            relation_dict[key] = []
+        relation_dict[key].append(relation)
 
     # Coref
     cluster_dict = MissingDict(-1,
@@ -175,7 +176,7 @@ class IEJsonReader(DatasetReader):
             if "clusters" not in js:
                 js["clusters"] = []
             if "annotatedPredicates" not in js: # assume dataset is exhausitively annotated 
-                js["annotatedPredicates"] = None
+                js["annotatedPredicates"] = [None for _ in range(n_sentences)]
             for field in ["ner", "relations", "events"]:
                 if field not in js:
                     js[field] = [[] for _ in range(n_sentences)]
@@ -205,6 +206,8 @@ class IEJsonReader(DatasetReader):
 
                 if self._predict_hack:
                     instances.append(instance)
+                elif(annotated_predicates is None): # (Marina) account for exhaustive annotation
+                    yield instance
                 elif(len(annotated_predicates) > 0):
                     yield instance
 

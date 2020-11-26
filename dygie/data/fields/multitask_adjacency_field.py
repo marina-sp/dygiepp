@@ -98,15 +98,17 @@ class MultiTaskAdjacencyField(Field[torch.Tensor]):
     @overrides
     def count_vocab_items(self, counter: Dict[str, Dict[str, int]]):
         if self._indexed_labels is None and self.labels is not None:
-            for label in self.labels:
-                counter[self._label_namespace][label] += 1  # type: ignore
+            for label_list in self.labels:
+                for label in label_list:
+                    counter[self._label_namespace][label] += 1  # type: ignore
 
     @overrides
     def index(self, vocab: Vocabulary):
         if self.labels is not None:
             self._indexed_annotated_predicates = list(range(vocab.get_vocab_size(self._label_namespace))) if self.annotated_predicates is None else [vocab.get_token_index(label, self._label_namespace) for label in self.annotated_predicates] 
             self._indexed_labels = [
-                vocab.get_token_index(label, self._label_namespace) for label in self.labels
+                [vocab.get_token_index(label, self._label_namespace) for label in label_list]
+                for label_list in self.labels
             ]
         self.vocab_size = vocab.get_vocab_size(self._label_namespace)
 
@@ -125,8 +127,9 @@ class MultiTaskAdjacencyField(Field[torch.Tensor]):
             tensor[:,:,pred] = 0
 
         # set positives
-        for (i, j), label in zip(self.indices, labels):
-            tensor[i,j,label] = 1
+        for (i, j), label_list in zip(self.indices, labels):
+            for label in label_list:
+                tensor[i,j,label] = 1
         return tensor
 
     @overrides
