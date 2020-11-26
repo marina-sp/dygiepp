@@ -14,6 +14,7 @@ from allennlp.nn import util, InitializerApplicator, RegularizerApplicator
 from allennlp.modules import TimeDistributed
 
 from dygie.training.relation_metrics import RelationMetrics, CandidateRecall
+from dygie.training.relation_formatter import RelationFormatter
 from dygie.models.entity_beam_pruner import Pruner
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -68,7 +69,9 @@ class RelationExtractor(Model):
         self._candidate_recall = CandidateRecall()
         self._relation_metrics = RelationMetrics(self._thresholds.data, label_dict=vocab.get_token_to_index_vocabulary("relation_labels"))
 
-        bce = torch.nn.BCEWithLogitsLoss()
+        self._relation_collector = RelationFormatter("~/work/diffbot/dygie_multitask/kn2/relations.out")
+
+        bce = torch.nn.BCEWithLogitsLoss(reduction="sum")
         def masked_loss(logits, labels):
             mask = ~torch.eq(labels, -1)
             masked_logits = torch.masked_select(logits, mask)
@@ -209,6 +212,10 @@ class RelationExtractor(Model):
             self._relation_metrics(predictions, metadata)
 
             output_dict["loss"] = cross_entropy
+        
+        # (marinasp): if loaded from archive (=evaluation), then collect relations for output
+        if self._loaded:
+            self._relation_collector(output_dict["decoded_relations"])
         return output_dict
 
     @overrides
