@@ -1,5 +1,6 @@
 import logging
 import itertools
+from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 import torch
@@ -236,9 +237,12 @@ class RelationExtractor(Model):
         return output_dict
 
     @overrides
-    def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        precision, recall, f1 = self._relation_metrics.get_metric(reset)
+    def get_metrics(self, reset: bool = False) -> Dict[str, float]: 
+        # tune only validating during training (not in evalution mode)
+        precision, recall, f1 = self._relation_metrics.get_metric(reset, tune=(not self._loaded) and (not self.training))
         candidate_recall = self._candidate_recall.get_metric(reset)
+        self._relation_collector.get_metric(reset, write=self._loaded and (not self.training))
+
         return {"rel_precision": precision,
                 "rel_recall": recall,
                 "rel_f1": f1,
