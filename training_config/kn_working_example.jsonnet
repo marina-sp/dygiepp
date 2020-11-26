@@ -1,6 +1,7 @@
 // Import template file.
 
 local template = import "template_dw.libsonnet";
+//local template = import "template_multitask.libsonnet";
 
 ////////////////////
 
@@ -28,22 +29,22 @@ local params = {
   use_scibert: false,
   finetune_bert: true,
   rel_prop: 0,
-  coref_prop: 1,
+  coref_prop: 0,
   context_width: 3,
-  rel_prop_dropout_A: 0.0,
-  rel_prop_dropout_f: 0.0,
+  rel_prop_dropout_A: 0.2,
+  rel_prop_dropout_f: 0.2,
 
   // Specifies the model parameters.
   lstm_hidden_size: 200,
-  lstm_n_layers: 1,
+  lstm_n_layers: 3,
   feature_size: 20,
   feedforward_layers: 2,
   char_n_filters: 50,
-  feedforward_dim: 150,
+  feedforward_dim: 200,
   max_span_width: 8,
   feedforward_dropout: 0.4,
   lexical_dropout: 0.5,
-  lstm_dropout: 0.0,
+  lstm_dropout: 0.2,
   loss_weights: {          // Loss weights for the modules.
     ner: 0.0,
     relation: 1.0,
@@ -51,8 +52,8 @@ local params = {
     events: 0.0
   },
   loss_weights_events: {   // Loss weights for trigger and argument ID in events.
-    trigger: 1.0,
-    arguments: 1.0,
+    trigger: 0.0,
+    arguments: 0.0,
   },
 
   // Coref settings.
@@ -60,7 +61,7 @@ local params = {
   coref_max_antecedents: 100,
 
   // Relation settings.
-  relation_spans_per_word: 0.5,
+  relation_spans_per_word: 0.8,
   relation_positive_label_weight: 1.0,
 
   // Event settings.
@@ -69,9 +70,10 @@ local params = {
   events_positive_label_weight: 1.0,
 
   // Model training
-  batch_size: 4,
-  num_epochs: 50,
-  patience: 15,
+  batch_size: 2,
+  grad_clip: 5,
+  num_epochs: 5,
+  patience: 10,
   optimizer: {
     type: "bert_adam",
     lr: 1e-3,
@@ -81,7 +83,7 @@ local params = {
     weight_decay: 0.0,
     parameter_groups: [
       [["_text_field_embedder"],
-       {"lr": 5e-5,
+       {"lr": 5e-4,
         "warmup": 0.2,
         "t_total": 200000,
         "weight_decay": 0.01,
