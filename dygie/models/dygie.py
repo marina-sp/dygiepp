@@ -195,6 +195,8 @@ class DyGIE(Model):
         #the_list = [list(k+metadata[i]["start_ix"] if k < max_sent_len else 0 for k in range(text_embeddings.shape[1])) for i in range(len(metadata))]
         #import ipdb; ipdb.set_trace()
         #text_embeddings = torch.gather(text_embeddings, 1, torch.tensor(the_list, device=text_embeddings.device).unsqueeze(2).repeat(1, 1, text_embeddings.shape[2]))
+
+        # (marinasp) Shape: (batch_size, max_sentence_length, encoding_dim)?
         text_embeddings = new_text_embeddings
 
         # Only keep the text embeddings that correspond to actual tokens.
@@ -398,10 +400,12 @@ class DyGIE(Model):
         return res
     
     #@overrides
-    def load(**params):
-        model = super().load(**params)
+    @classmethod
+    def _load(cls, *args, **kwargs):
+        model = super(DyGIE, cls)._load(*args, **kwargs)
 
         # whether in evaluation mode (relevant for relation output and tuning)
         model._relation._loaded = True
+        print("normal load", model._relation._loaded)
         return model
-        
+

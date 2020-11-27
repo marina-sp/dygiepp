@@ -69,7 +69,7 @@ class RelationExtractor(Model):
         self._candidate_recall = CandidateRecall()
         self._relation_metrics = RelationMetrics(self._thresholds.data, label_dict=vocab.get_token_to_index_vocabulary("relation_labels"))
 
-        self._relation_collector = RelationFormatter("~/work/diffbot/dygie_multitask/kn2/relations.out")
+        self._relation_collector = RelationFormatter()
 
         bce = torch.nn.BCEWithLogitsLoss(reduction="sum")
         def masked_loss(logits, labels):
@@ -215,7 +215,7 @@ class RelationExtractor(Model):
         
         # (marinasp): if loaded from archive (=evaluation), then collect relations for output
         if self._loaded:
-            self._relation_collector(output_dict["decoded_relations"])
+            self._relation_collector(output_dict["decoded_relations"], metadata)
         return output_dict
 
     @overrides

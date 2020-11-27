@@ -3,9 +3,9 @@ from allennlp.training.metrics.metric import Metric
 
 class RelationFormatter(Metric):
 
-    def __init__(self, outfile):
+    def __init__(self):
         self.reset()
-        self.outfile = outfile
+        self.outfile = "./dygie_prediction.txt"
 
     @overrides
     def __call__(self, predicted_relation_list, metadata_list):
@@ -26,13 +26,13 @@ class RelationFormatter(Metric):
                     # no relation for this span is expected
                     true_label = 0
 
-                self.relations.setdefault((sentence_num, ix[0], ix[1])).append(
+                self.relations.setdefault((sent_num, ix[0], ix[1]), []).append(
                         (sentence, label, true_label))
 
             # save all missed gold relations
             for (span1, span2), label_list in gold_relations.items():
                 for label in label_list:
-                    self.relations.setdefault((sentence_num, span1, span2)).append(
+                    self.relations.setdefault((sent_num, span1, span2), []).append(
                         (sentence, label, -1))
 
     @overrides
@@ -52,11 +52,11 @@ class RelationFormatter(Metric):
         with open(self.outfile, "w") as f:
             f.write("Formatted predictions:")
 
-        for (sentence_num, span1, span2), prediction_list in self.relations.items():
+        for (sent_num, span1, span2), prediction_list in self.relations.items():
 
             with open(self.outfile, "a") as f:
                 f.write("\n")
-                f.write(f"{sentence_num}")
+                f.write(f"{sent_num}")
 
             # decode three different possibilities as differentiated by the true_labels
             sentence_str = None
@@ -92,16 +92,16 @@ class RelationFormatter(Metric):
                 else:
                     fn.append(label)
 
-            assert (len(fp_span) == 0) or (len(tp+fp+fn) == 0)
+            #assert (len(fp_span) == 0) or (len(tp+fp+fn) == 0)
+            print(len(fp_span), len(tp+fp+fn))
 
             with open(self.outfile, "a") as f:
                 f.write("\n")
                 f.write(sentence_str)
+                f.write("\n")
                 if len(fp_span) == 0:
-                    f.write(f"correct (TP): {tp}")
-                    f.write(f"wrong   (FP): {fp}")
-                    f.write(f"missed  (FN): {fn}")
+                    f.write(f"correct (TP): {tp}\n")
+                    f.write(f"wrong   (FP): {fp}\n")
+                    f.write(f"missed  (FN): {fn}\n")
                 else:
-                    f.write(f"Wrong span. Labels = {fp_span}")
-
-                    
+                    f.write(f"Wrong span. Labels = {fp_span}\n")

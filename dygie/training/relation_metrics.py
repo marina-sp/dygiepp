@@ -19,6 +19,7 @@ class RelationMetrics(Metric):
         self._th_def = default_th
         self._thresholds = thresholds
         self._threshold_candidates = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        self.outfile = "./dygie_best_threshold.txt"
 
         self.reset()
 
@@ -49,6 +50,7 @@ class RelationMetrics(Metric):
             # tune only at the end of epoch
             print("tuned threshold!")
             self._tune_threshold()
+            self._save_threshold()
 
         total_predicted = 0
         total_matched = 0
@@ -91,7 +93,11 @@ class RelationMetrics(Metric):
     def _tune_threshold(self):
         for label_idx, score_list in self._scores_per_relation.items():
             self._thresholds[label_idx] = self._get_threshold(score_list, self._gold_per_relation[label_idx])
-    
+
+    def _save_threshold(self):
+        with open(self.outfile) as fp:
+            fp.writelines(self._thresholds.tolist())
+
     def _get_threshold(self, score_list, gold_count):
         best_f1 = 0.0
         best_th = self._th_def
