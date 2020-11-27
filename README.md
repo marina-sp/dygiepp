@@ -25,6 +25,52 @@ Finally, you'll need SciBERT for the scientific datasets. Run `python scripts/pr
 
 ## Training a model
 
+### KnowledgeNet
+#### Usage 
+Run `bash ./scripts/train/train_kn.sh [gpu-id]` for training on KnowledgeNet only and `bash ./scripts/train/train_kn_weak.sh [gpu-id]` for training on the weakly supervised dataset and test on KN. 
+
+The `gpu-id` should be an integer like `1`, or `-1` to train on CPU. 
+
+Both scripts will internally access two config files: `training_config/kn_working_example.jsonnet` and `training_config/template_dw.libsonnet`. 
+
+NOTE: the script uses a vocabulary directory at `vocabulary_kn`. If you want to generate your own vocabulary for new data, turn off the vocabulary loading in `training_config/template_dw.libsonnet`.  
+
+#### Data
+To set files used for training/dev/test, change the corresponding bash scripts `train_*.sh`.
+
+The first provided script expect the KnowledgeNet dataset to be located at `data/kn/`:
+
+```
+kn/
+|
+|_ kn.train.train.json  # main training
+|_ kn.train.dev.json    # tuning
+|_ kn.dev.json          # testing
+```
+
+The second provided script expect the weakly supervised data to be located at `data/weak_sv/`:
+
+```
+weak_sv/
+|
+|_ wiki.train.json  # used for main training
+|_ kn.train.json    # used for threshold tuning
+|_ kn.dev.json      # used for final testing (with allennlp evaluate) 
+```
+#### Parameters
+
+To change most of the hyper-parameters, like 
+- batch size
+- number of epochs
+- patience for early stopping
+you can modify the corresponding lines in the `kn_working_example.jsonnet`.
+
+#### Output
+The program will train a model and save a model at `./models/kn` and `./models/kn_wsv` (per default). Change the experiment name in the training bash script to specify the desired output directory.
+
+By the end of every validation, the program will write the results of threshold tuning to file `./dygie_best_threshold.txt`.
+When called in the evaluation mode, the program will write formatted relation predictions to file `./dygie_predictions.txt`.
+ 
 ### SciERC
 
 To train a model for named entity recognition, relation extraction, and coreference resolution on the SciERC dataset:
