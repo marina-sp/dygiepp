@@ -16,8 +16,12 @@ local params = {
   // Primary prediction target. Watch metrics associated with this target.
   target: "rel",
 
+  // specify vocabulary:
+  vocab_path: "data/kn_dygie/vocabulary",
+
   // If debugging, don't load expensive embedding files.
-  debug: false,
+  debug: true,
+  n_debug_docs: 10,
 
   // Specifies the token-level features that will be created.
   use_glove: false,

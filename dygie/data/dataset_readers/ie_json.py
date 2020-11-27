@@ -138,8 +138,28 @@ class IEJsonReader(DatasetReader):
         self._max_span_width = max_span_width
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
         self._debug = debug
-        self._n_debug_docs = 50
+        self._n_debug_docs = 10
         self._predict_hack = predict_hack
+
+        # add limit to the amount of examples per relation
+        self.max_examples = 10
+        # todo(marinasp): remove hardcoded relation labels!
+        self._rel_counts = {
+            'SUBSIDIARY_OF': 0,
+            'FOUNDED_BY': 0,
+            'EMPLOYEE_OR_MEMBER_OF': 0,
+            'CEO': 0,
+            'DATE_FOUNDED': 0,
+            'HEADQUARTERS': 0,
+            'EDUCATED_AT': 0,
+            'NATIONALITY': 0,
+            'PLACE_OF_RESIDENCE': 0,
+            'PLACE_OF_BIRTH': 0,
+            'DATE_OF_DEATH': 0,
+            'DATE_OF_BIRTH': 0,
+            'SPOUSE': 0,
+            'CHILD_OF': 0,
+            'POLITICAL_AFFILIATION': 0}
 
     @overrides
     def _read(self, file_path: str):
@@ -191,6 +211,21 @@ class IEJsonReader(DatasetReader):
 
             for sentence_num, (sentence, ner, relations, events, groups, start_ix, end_ix, annotated_predicates) in enumerate(zipped):
 
+                # (marinasp): add relation limit
+                do_add_example = False
+                for rel in relations:
+                    rel_str = rel[-1]
+                    # sentence is relevant if at least one relation of interest occurs
+                    if self._rel_counts[rel_str] < self.max_examples:
+                        do_add_example = True
+
+                if do_add_example:
+                    # count relations from this sentence
+                    for rel in relations:
+                        self._rel_counts[rel[-1]] += 1
+                else:
+                    continue
+
                 sentence_end = sentence_start + len(sentence) - 1
                 cluster_tmp, cluster_dict_doc = cluster_dict_sentence(
                     cluster_dict_doc, sentence_start, sentence_end)
@@ -206,7 +241,7 @@ class IEJsonReader(DatasetReader):
 
                 if self._predict_hack:
                     instances.append(instance)
-                elif(annotated_predicates is None): # (Marina) account for exhaustive annotation
+                elif(annotated_predicates is None): # (marinasp) account for exhaustive annotation
                     yield instance
                 elif(len(annotated_predicates) > 0):
                     yield instance
