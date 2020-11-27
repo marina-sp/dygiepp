@@ -370,7 +370,8 @@ class IEJsonReader(DatasetReader):
 
     @overrides
     def _instances_from_cache_file(self, cache_filename):
-        cache_filename += str(self.max_examples)
+        # todo(marinasp): use different cache files for different max_examples?
+        #cache_filename += str(self.max_examples)
         with open(cache_filename, "rb") as f:
             for entry in pkl.load(f):
                 yield entry
@@ -378,7 +379,7 @@ class IEJsonReader(DatasetReader):
     @overrides
     def _instances_to_cache_file(self, cache_filename, instances):
         print(f"\n\ncaching {len(instances)} instances\n\n")
-        cache_filename += str(self.max_examples)
+        #cache_filename += str(self.max_examples)
         with open(cache_filename, "wb") as f:
             pkl.dump(instances, f)
 
