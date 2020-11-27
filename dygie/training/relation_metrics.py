@@ -95,8 +95,9 @@ class RelationMetrics(Metric):
             self._thresholds[label_idx] = self._get_threshold(score_list, self._gold_per_relation[label_idx])
 
     def _save_threshold(self):
-        with open(self.outfile) as fp:
-            fp.writelines(self._thresholds.tolist())
+        with open(self.outfile, "w") as fp:
+            for label, idx in self._label_dict.items():                
+                fp.write(f"{self._thresholds[idx].item()}\t{idx}\t{label}\n")
 
     def _get_threshold(self, score_list, gold_count):
         best_f1 = 0.0
