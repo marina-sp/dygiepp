@@ -65,6 +65,8 @@ To change most of the hyper-parameters, like
 - patience for early stopping
 you can modify the corresponding lines in the `kn_working_example.jsonnet`.
 
+To run the pipeline in debug mode on very small amount of examples (can be set in `dygie/data/dataset_readers/ie_json.py`), set the `debug` flag to `true`.
+
 #### Output
 The program will train a model and save a model at `./models/kn` and `./models/kn_wsv` (per default). Change the experiment name in the training bash script to specify the desired output directory.
 
