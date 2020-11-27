@@ -1,7 +1,6 @@
 *__pycache__
 *.pyc
-data/*/*.json
-data/*/cached/*
+data/*
 models/*
 pretrained/*
 predictions/*

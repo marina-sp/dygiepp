@@ -131,7 +131,8 @@ class IEJsonReader(DatasetReader):
                  context_width: int = 1,
                  debug: bool = False,
                  lazy: bool = False,
-                 predict_hack: bool = False) -> None:
+                 predict_hack: bool = False,
+                 max_examples: int = 0) -> None:
         super().__init__(lazy)
         assert (context_width % 2 == 1) and (context_width > 0)
         self.k = int( (context_width - 1) / 2)
@@ -142,7 +143,12 @@ class IEJsonReader(DatasetReader):
         self._predict_hack = predict_hack
 
         # add limit to the amount of examples per relation
-        self.max_examples = 10
+        self.max_examples = max_examples
+        # todo(marinasp): remove hardcoded relation labels!
+        self._rel_counts = {}
+
+    @overrides
+    def _read(self, file_path: str):
         # todo(marinasp): remove hardcoded relation labels!
         self._rel_counts = {
             'SUBSIDIARY_OF': 0,
@@ -161,8 +167,7 @@ class IEJsonReader(DatasetReader):
             'CHILD_OF': 0,
             'POLITICAL_AFFILIATION': 0}
 
-    @overrides
-    def _read(self, file_path: str):
+
         # if `file_path` is a URL, redirect to the cache
         file_path = cached_path(file_path)
 
@@ -212,19 +217,20 @@ class IEJsonReader(DatasetReader):
             for sentence_num, (sentence, ner, relations, events, groups, start_ix, end_ix, annotated_predicates) in enumerate(zipped):
 
                 # (marinasp): add relation limit
-                do_add_example = False
-                for rel in relations:
-                    rel_str = rel[-1]
-                    # sentence is relevant if at least one relation of interest occurs
-                    if self._rel_counts[rel_str] < self.max_examples:
-                        do_add_example = True
+                if self.max_examples != 0:
+                   do_add_example = False
+                   for rel in relations:
+                       rel_str = rel[-1]
+                       # sentence is relevant if at least one relation of interest occurs
+                       if self._rel_counts[rel_str] < self.max_examples:
+                           do_add_example = True
 
-                if do_add_example:
-                    # count relations from this sentence
-                    for rel in relations:
-                        self._rel_counts[rel[-1]] += 1
-                else:
-                    continue
+                   if do_add_example:
+                       # count relations from this sentence
+                       for rel in relations:
+                           self._rel_counts[rel[-1]] += 1
+                   else:
+                       continue
 
                 sentence_end = sentence_start + len(sentence) - 1
                 cluster_tmp, cluster_dict_doc = cluster_dict_sentence(
@@ -364,12 +370,15 @@ class IEJsonReader(DatasetReader):
 
     @overrides
     def _instances_from_cache_file(self, cache_filename):
+        cache_filename += str(self.max_examples)
         with open(cache_filename, "rb") as f:
             for entry in pkl.load(f):
                 yield entry
 
     @overrides
     def _instances_to_cache_file(self, cache_filename, instances):
+        print(f"\n\ncaching {len(instances)} instances\n\n")
+        cache_filename += str(self.max_examples)
         with open(cache_filename, "wb") as f:
             pkl.dump(instances, f)
 
