@@ -4,7 +4,7 @@
 
 experiment_name="kn"
 data_root="./data/kn"
-config_file="./training_config/kn_working_example.jsonnet"
+config_file="./training_config/kn.jsonnet"
 cuda_device=$1
 
 # Train model.
