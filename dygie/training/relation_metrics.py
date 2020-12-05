@@ -20,7 +20,8 @@ class RelationMetrics(Metric):
         self._thresholds = thresholds
         self._threshold_candidates = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
         self.outfile = "./dygie_best_threshold.txt"
-
+        
+        self.precision, self.recall, self.f1 = 0, 0, 0
         self.reset()
 
     @overrides
@@ -51,25 +52,27 @@ class RelationMetrics(Metric):
             print("tuned threshold!")
             self._tune_threshold()
             self._save_threshold()
+        
+        # getting a metric is time-consuming, so update only at the end of epoch
+        if reset:
+            total_predicted = 0
+            total_matched = 0
 
-        total_predicted = 0
-        total_matched = 0
+            for label_idx, score_list in self._scores_per_relation.items():
+                if len(score_list) != 0:
+                    pred, matched = self._get_matched_counts(score_list, self._thresholds[label_idx].item())
+                    total_predicted += pred
+                    total_matched += matched
 
-        for label_idx, score_list in self._scores_per_relation.items():
-            if len(score_list) != 0:
-                pred, matched = self._get_matched_counts(score_list, self._thresholds[label_idx].item())
-                total_predicted += pred
-                total_matched += matched
-
-        # feed #Predicted=TP+FP, #Gold=TP+FN, #TP
-        #print(total_predicted, self._total_gold, total_matched)
-        precision, recall, f1 = compute_f1(total_predicted, self._total_gold, total_matched)
+            # feed #Predicted=TP+FP, #Gold=TP+FN, #TP
+            #print(total_predicted, self._total_gold, total_matched)
+            self.precision, self.recall, self.f1 = compute_f1(total_predicted, self._total_gold, total_matched)
 
         # Reset counts if at end of epoch.
         if reset:
             self.reset()
 
-        return precision, recall, f1
+        return self.precision, self.recall, self.f1
 
     @overrides
     def reset(self):
