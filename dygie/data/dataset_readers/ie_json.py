@@ -230,6 +230,7 @@ class IEJsonReader(DatasetReader):
                        for rel in relations:
                            self._rel_counts[rel[-1]] += 1
                    else:
+                       sentence_start += len(sentence)
                        continue
 
                 sentence_end = sentence_start + len(sentence) - 1
@@ -295,66 +296,72 @@ class IEJsonReader(DatasetReader):
                         sentence_num=sentence_num)
         metadata_field = MetadataField(metadata)
 
-        # Trigger labels. One label per token in the input.
-        token_trigger_labels = []
-        for i in range(len(text_field)):
-            token_trigger_labels.append(trigger_dict[i])
+        if True:
+            # Trigger labels. One label per token in the input.
+            token_trigger_labels = []
+            for i in range(len(text_field)):
+                token_trigger_labels.append(trigger_dict[i])
+    
+            trigger_label_field = SequenceLabelField(token_trigger_labels, text_field,
+                                                     label_namespace="trigger_labels")
+    
+            # Generate fields for text spans, ner labels, coref labels.
+            spans = []
+            span_ner_labels = []
+            span_coref_labels = []
+            for start, end in enumerate_spans(sentence, max_span_width=self._max_span_width):
+                span_ix = (start, end)
+                span_ner_labels.append(ner_dict[span_ix])
+                span_coref_labels.append(cluster_dict[span_ix])
+                spans.append(SpanField(start, end, text_field))
+    
+            span_field = ListField(spans)
+            ner_label_field = SequenceLabelField(span_ner_labels, span_field,
+                                                 label_namespace="ner_labels")
+            coref_label_field = SequenceLabelField(span_coref_labels, span_field,
+                                                   label_namespace="coref_labels")
+    
+            # Generate labels for relations and arguments. Only store non-null values.
+            # For the arguments, by convention the first span specifies the trigger, and the second
+            # specifies the argument. Ideally we'd have an adjacency field between (token, span) pairs
+            # for the event arguments field, but AllenNLP doesn't make it possible to express
+            # adjacencies between two different sequences.
+            n_spans = len(spans)
+            span_tuples = [(span.span_start, span.span_end) for span in spans]
+            candidate_indices = [(i, j) for i in range(n_spans) for j in range(n_spans)]
+    
+            relations = []
+            relation_indices = []
+            for i, j in candidate_indices:
+                span_pair = (span_tuples[i], span_tuples[j])
+                relation_label = relation_dict[span_pair]
+                if relation_label:
+                    relation_indices.append((i, j))
+                    relations.append(relation_label)
+    
+            relation_label_field = MultiTaskAdjacencyField(
+                indices=relation_indices, sequence_field=span_field, labels=relations,
+                label_namespace="relation_labels", annotated_predicates=annotated_predicates)
+    
+            arguments = []
+            argument_indices = []
+            n_tokens = len(sentence)
+            candidate_indices = [(i, j) for i in range(n_tokens) for j in range(n_spans)]
+            for i, j in candidate_indices:
+                token_span_pair = (i, span_tuples[j])
+                argument_label = argument_dict[token_span_pair]
+                if argument_label:
+                    argument_indices.append((i, j))
+                    arguments.append(argument_label)
 
-        trigger_label_field = SequenceLabelField(token_trigger_labels, text_field,
-                                                 label_namespace="trigger_labels")
-
-        # Generate fields for text spans, ner labels, coref labels.
-        spans = []
-        span_ner_labels = []
-        span_coref_labels = []
-        for start, end in enumerate_spans(sentence, max_span_width=self._max_span_width):
-            span_ix = (start, end)
-            span_ner_labels.append(ner_dict[span_ix])
-            span_coref_labels.append(cluster_dict[span_ix])
-            spans.append(SpanField(start, end, text_field))
-
-        span_field = ListField(spans)
-        ner_label_field = SequenceLabelField(span_ner_labels, span_field,
-                                             label_namespace="ner_labels")
-        coref_label_field = SequenceLabelField(span_coref_labels, span_field,
-                                               label_namespace="coref_labels")
-
-        # Generate labels for relations and arguments. Only store non-null values.
-        # For the arguments, by convention the first span specifies the trigger, and the second
-        # specifies the argument. Ideally we'd have an adjacency field between (token, span) pairs
-        # for the event arguments field, but AllenNLP doesn't make it possible to express
-        # adjacencies between two different sequences.
-        n_spans = len(spans)
-        span_tuples = [(span.span_start, span.span_end) for span in spans]
-        candidate_indices = [(i, j) for i in range(n_spans) for j in range(n_spans)]
-
-        relations = []
-        relation_indices = []
-        for i, j in candidate_indices:
-            span_pair = (span_tuples[i], span_tuples[j])
-            relation_label = relation_dict[span_pair]
-            if relation_label:
-                relation_indices.append((i, j))
-                relations.append(relation_label)
-
-        relation_label_field = MultiTaskAdjacencyField(
-            indices=relation_indices, sequence_field=span_field, labels=relations,
-            label_namespace="relation_labels", annotated_predicates=annotated_predicates)
-
-        arguments = []
-        argument_indices = []
-        n_tokens = len(sentence)
-        candidate_indices = [(i, j) for i in range(n_tokens) for j in range(n_spans)]
-        for i, j in candidate_indices:
-            token_span_pair = (i, span_tuples[j])
-            argument_label = argument_dict[token_span_pair]
-            if argument_label:
-                argument_indices.append((i, j))
-                arguments.append(argument_label)
-
-        argument_label_field = AdjacencyFieldAssym(
-            indices=argument_indices, row_field=text_field, col_field=span_field, labels=arguments,
-            label_namespace="argument_labels")
+            argument_label_field = AdjacencyFieldAssym(
+                indices=argument_indices, row_field=text_field, col_field=span_field, labels=arguments,
+                label_namespace="argument_labels")
+        
+        else:
+            coref_label_field = SequenceLabelField.empty_field()
+            ner_label_filed = SequenceLabelField.empty_field()
+            argument_label_field = AdjacenceFieldAssym.empty_field()
 
         # Pull it  all together.
         fields = dict(text=text_field_with_context,
