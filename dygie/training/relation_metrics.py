@@ -18,7 +18,7 @@ class RelationMetrics(Metric):
 
         self._th_def = default_th
         self._thresholds = thresholds
-        self._threshold_candidates = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        self._threshold_candidates = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9]
         self.outfile = "./dygie_best_threshold.txt"
         
         self.precision, self.recall, self.f1 = 0, 0, 0

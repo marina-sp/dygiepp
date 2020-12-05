@@ -10,7 +10,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_single_sentence(self):
         prediction = [{
-            ((0,1), (2,2)): [("FOUNDED_BY", 1, 0.9), ("EMPLOYEE_OR_MEMBER_OF", 2, 0.1)],
+            ((0,1), (2,2)): [("FOUNDED_BY", 1, 0.4), ("EMPLOYEE_OR_MEMBER_OF", 2, 0.3)],
             ((0,0), (2,2)): [("SUBSIDIARY_OF", 0, 0.0)]
         }]
         metadata = [{"relation_dict": {
@@ -28,13 +28,25 @@ class MyTestCase(unittest.TestCase):
 
         scores = {i: [] for i in range(15)}
         scores[0].append((0.0, 0))
-        scores[1].append((0.9, 1))
-        scores[2].append((0.1, 0))
+        scores[1].append((0.4, 1))
+        scores[2].append((0.3, 0))
 
         self.assertEqual(metric._gold_per_relation, golds)
         self.assertEqual(metric._scores_per_relation, scores)
 
         pr, re, f1 = metric.get_metric(reset=True, tune=False)
+        self.assertAlmostEqual(pr, 0.)
+        self.assertAlmostEqual(re, 0.)
+        self.assertAlmostEqual(f1, 0.)
+
+        metric(prediction, metadata)
+        pr, re, f1 = metric.get_metric(reset=True, tune=True)
+        print(metric._thresholds)
+        self.assertEqual(metric._thresholds[1] == .5, False)
+        self.assertEqual(metric._thresholds[0] == .5, True)
+        self.assertEqual(metric._thresholds[2] == .5, True)
+        self.assertEqual(metric._thresholds[3] == .5, True)
+
         self.assertAlmostEqual(pr, 1.)
         self.assertAlmostEqual(re, 0.5)
         self.assertAlmostEqual(f1, 2./3)
