@@ -71,7 +71,7 @@ class RelationExtractor(Model):
 
         self._relation_collector = RelationFormatter()
 
-        bce = torch.nn.BCEWithLogitsLoss(reduction="sum")
+        bce = torch.nn.BCEWithLogitsLoss()  #reduction="sum")
         def masked_loss(logits, labels):
             mask = ~torch.eq(labels, -1)
             masked_logits = torch.masked_select(logits, mask)
@@ -248,7 +248,8 @@ class RelationExtractor(Model):
         # tune only validating during training (not in evalution mode)
         precision, recall, f1 = self._relation_metrics.get_metric(reset, tune=(not self._loaded) and (not self.training))
         candidate_recall = self._candidate_recall.get_metric(reset)
-        self._relation_collector.get_metric(reset, write=self._loaded and (not self.training))
+        if self._loaded and (not self.training):
+            self._relation_collector.get_metric(reset, write=True)
 
         return {"rel_precision": precision,
                 "rel_recall": recall,
@@ -344,8 +345,8 @@ class RelationExtractor(Model):
         for sliced, ixs, top_span_mask in zip(relation_labels, top_span_indices, top_span_masks.bool()):
             entry = sliced[ixs][:, ixs].unsqueeze(0)
             mask_entry = top_span_mask & top_span_mask.transpose(0, 1).unsqueeze(0)
-            entry[mask_entry] += 1
-            entry[~mask_entry] = -1
+            #entry[mask_entry] += 1
+            #entry[~mask_entry] = -1
             relations.append(entry)
 
         return torch.cat(relations, dim=0)

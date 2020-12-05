@@ -18,7 +18,7 @@ local params = {
 
   // specify vocabulary:
   vocab_path: "data/weak_sv/vocabulary",
-  max_examples_per_relation: 1000,
+  //max_examples_per_relation: 2000,
 
   // If debugging, don't load expensive embedding files.
   debug: false,
@@ -41,15 +41,15 @@ local params = {
 
   // Specifies the model parameters.
   lstm_hidden_size: 200,
-  lstm_n_layers: 3,
+  lstm_n_layers: 1,
   feature_size: 20,
   feedforward_layers: 2,
   char_n_filters: 50,
   feedforward_dim: 200,
-  max_span_width: 8,
+  max_span_width: 5,
   feedforward_dropout: 0.4,
   lexical_dropout: 0.5,
-  lstm_dropout: 0.2,
+  lstm_dropout: 0.0,
   loss_weights: {          // Loss weights for the modules.
     ner: 0.0,
     relation: 1.0,
@@ -66,7 +66,7 @@ local params = {
   coref_max_antecedents: 100,
 
   // Relation settings.
-  relation_spans_per_word: 0.8,
+  relation_spans_per_word: 0.5,
   relation_positive_label_weight: 1.0,
 
   // Event settings.
@@ -88,7 +88,7 @@ local params = {
     weight_decay: 0.0,
     parameter_groups: [
       [["_text_field_embedder"],
-       {"lr": 5e-4,
+       {"lr": 5e-5,
         "warmup": 0.2,
         "t_total": 200000,
         "weight_decay": 0.01,
