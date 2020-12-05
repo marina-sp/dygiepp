@@ -22,6 +22,7 @@ class RelationMetrics(Metric):
         self.outfile = "./dygie_best_threshold.txt"
         
         self.precision, self.recall, self.f1 = 0, 0, 0
+        self.update_counter, self.update_frequency = 0, 1000
         self.reset()
 
     @overrides
@@ -45,6 +46,12 @@ class RelationMetrics(Metric):
                             true_label = 0
                         self._scores_per_relation[label_idx].append((score, true_label))
 
+                else:
+                    # predictions on false prediction should be accounted as false positives
+                    for label, label_idx, score in label_list:
+                        true_label = 0
+                        self._scores_per_relation[label_idx].append((score, true_label))
+
     @overrides
     def get_metric(self, reset=False, tune=False):
         if tune and reset:
@@ -53,8 +60,8 @@ class RelationMetrics(Metric):
             self._tune_threshold()
             self._save_threshold()
         
-        # getting a metric is time-consuming, so update only at the end of epoch
-        if reset:
+        # getting a metric is time-consuming, so update only from time to time
+        if reset or (self.update_counter % self.update_frequency == 0):
             total_predicted = 0
             total_matched = 0
 
@@ -67,6 +74,8 @@ class RelationMetrics(Metric):
             # feed #Predicted=TP+FP, #Gold=TP+FN, #TP
             #print(total_predicted, self._total_gold, total_matched)
             self.precision, self.recall, self.f1 = compute_f1(total_predicted, self._total_gold, total_matched)
+
+        self.update_counter += 1
 
         # Reset counts if at end of epoch.
         if reset:
