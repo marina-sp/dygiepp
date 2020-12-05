@@ -1,5 +1,6 @@
 import unittest
 from dygie.training.relation_metrics import RelationMetrics
+from dygie.training.relation_formatter import RelationFormatter
 import numpy as np
 
 
@@ -50,6 +51,38 @@ class MyTestCase(unittest.TestCase):
         self.assertAlmostEqual(pr, 1.)
         self.assertAlmostEqual(re, 0.5)
         self.assertAlmostEqual(f1, 2./3)
+
+    def test_output(self):
+        prediction = [[
+            (0,1, 2,2, "FOUNDED_BY"),
+            (0,1, 2,2, "EMPLOYEE_OR_MEMBER_OF"),
+            (0,0, 2,2, "SUBSIDIARY_OF")
+        ]]
+        metadata = [{
+            "relation_dict": {
+                ((0,1), (2,2)): ["SUBSIDIARY_OF", "FOUNDED_BY"]},
+            "sentence": ["Ich", "bin", "ein", "kurzer", "Satz"],
+            "sentence_num": 0,
+            "doc_key": "E11"
+        }]
+
+        metric = RelationFormatter()
+        metric(prediction, metadata)
+
+        golds = {
+            ("E11:0", (0,1), (2,2)): [
+                (metadata[0]["sentence"], "FOUNDED_BY", 2),
+                (metadata[0]["sentence"], "EMPLOYEE_OR_MEMBER_OF", 1),
+                (metadata[0]["sentence"], "SUBSIDIARY_OF", -1)
+            ],
+            ("E11:0", (0, 0), (2, 2)): [
+                (metadata[0]["sentence"], "SUBSIDIARY_OF", 0)
+            ]
+        }
+
+        self.assertEqual(metric.relations, golds)
+
+        metric.get_metric(reset=True, write=True)
 
 
 if __name__ == '__main__':

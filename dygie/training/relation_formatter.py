@@ -11,8 +11,8 @@ class RelationFormatter(Metric):
     def __call__(self, predicted_relation_list, metadata_list):
         for predicted_relations, metadata in zip(predicted_relation_list, metadata_list):
             gold_relations = metadata["relation_dict"]
-            sentence, sent_num = metadata["sentence"], metadata["sentence_num"]
-
+            sentence, sent_num, dockey = metadata["sentence"], metadata["sentence_num"], metadata["doc_key"]
+            sent_id = f"{dockey}:{sent_num}"
             for span_11, span_12, span_21, span_22, label in predicted_relations:
                 ix = ((span_11, span_12), (span_21, span_22))
                 if ix in gold_relations and label in gold_relations[ix]:
@@ -26,13 +26,13 @@ class RelationFormatter(Metric):
                     # no relation for this span is expected
                     true_label = 0
 
-                self.relations.setdefault((sent_num, ix[0], ix[1]), []).append(
+                self.relations.setdefault((sent_id, ix[0], ix[1]), []).append(
                         (sentence, label, true_label))
 
             # save all missed gold relations
             for (span1, span2), label_list in gold_relations.items():
                 for label in label_list:
-                    self.relations.setdefault((sent_num, span1, span2), []).append(
+                    self.relations.setdefault((sent_id, span1, span2), []).append(
                         (sentence, label, -1))
 
     @overrides
