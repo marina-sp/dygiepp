@@ -127,7 +127,8 @@ class RelationExtractor(Model):
 
         (top_span_embeddings, top_span_mention_scores,
          num_spans_to_keep, top_span_mask,
-         top_span_indices, top_spans) = self._prune_spans(spans, span_mask, span_embeddings, sentence_lengths)
+         top_span_indices, top_spans) = self._prune_spans(spans, span_mask, span_embeddings, sentence_lengths,
+                                                          relation_labels=relation_labels)
 
         relation_scores = self.get_relation_scores(top_span_embeddings,
                                               top_span_mention_scores)
@@ -143,7 +144,7 @@ class RelationExtractor(Model):
 
         return output_dict
 
-    def _prune_spans(self, spans, span_mask, span_embeddings, sentence_lengths):
+    def _prune_spans(self, spans, span_mask, span_embeddings, sentence_lengths, relation_labels):
         # Prune
         num_spans = spans.size(1)  # Max number of spans for the minibatch.
 
@@ -152,7 +153,8 @@ class RelationExtractor(Model):
 
         (top_span_embeddings, top_span_mask,
          top_span_indices, top_span_mention_scores, num_spans_kept) = self._mention_pruner(
-             span_embeddings, span_mask, num_spans_to_keep)
+             span_embeddings, span_mask, num_spans_to_keep,
+            relation_labels=relation_labels if self.training else None)
 
         top_span_mask = top_span_mask.unsqueeze(-1)
 

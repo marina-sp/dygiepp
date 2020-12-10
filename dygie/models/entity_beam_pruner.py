@@ -58,6 +58,7 @@ class Pruner(torch.nn.Module):
                 mask: torch.LongTensor,
                 num_items_to_keep: Union[int, torch.LongTensor],
                 class_scores: torch.FloatTensor = None,
+                relation_labels: torch.LongTensor = None,
                 gold_labels: torch.long = None) -> Tuple[torch.FloatTensor, torch.LongTensor,
                                                          torch.LongTensor, torch.FloatTensor]:
         """
@@ -135,7 +136,41 @@ class Pruner(torch.nn.Module):
         if self._gold_beam:
             num_items_to_keep = torch.sum(gold_labels > 0, dim=1)
 
-        # Always keep at least one item to avoid edge case with empty matrix.
+        selective_scores = scores.detach().clone()
+        # If relations are provided, make sure to take the scores for relevant spans.
+        if relation_labels is not None:
+            #print(relation_labels.shape)
+
+            # span is relevant if it is engaged in any relation with any other span (two dims)
+            gold_mask_arg1 = (relation_labels == 1).sum(dim=(2,3)).bool()
+            gold_mask_arg2 = torch.sum(relation_labels == 1, dim=(1,3)).bool()
+
+            #print(len(torch.where(gold_mask_arg1)[0]), len(torch.where(gold_mask_arg2)[0]))
+            #print(gold_mask_arg1.shape, gold_mask_arg2.shape)
+
+
+            gold_mask = (gold_mask_arg1 | gold_mask_arg2)
+            _gold_idx = torch.where(gold_mask)
+            _gold_idx_dict = {}
+            for i in range(gold_mask.shape[0]):
+                _gold_idx_dict[i] = _gold_idx[1][_gold_idx[0] == i]
+            #print(_gold_idx_dict)
+
+            #print("Relevant span idx:", len(_gold_idx[0]))
+            #print(gold_mask.shape)
+            # set score values to be selected for sure;
+            # scores are logits, so 1 would be definitely at top
+            #print(selective_scores.shape)
+
+            selective_scores[gold_mask] = 1
+
+            # Make sure that all relevant spans will be passed further
+            #print(gold_mask.sum(-1))
+            #print(num_items_to_keep)
+            num_items_to_keep = torch.max(num_items_to_keep, gold_mask.sum(-1))
+            #print(num_items_to_keep)
+
+            # Always keep at least one item to avoid edge case with empty matrix.
         max_items_to_keep = max(num_items_to_keep.max().item(), 1)
 
         if scores.size(-1) != 1 or scores.dim() != 3:
@@ -144,10 +179,17 @@ class Pruner(torch.nn.Module):
         # Make sure that we don't select any masked items by setting their scores to be very
         # negative.  These are logits, typically, so -1e20 should be plenty negative.
         # NOTE(`mask` needs to be a byte tensor now.)
-        scores = util.replace_masked_values(scores, mask.byte(), -1e20)
+        selective_scores = util.replace_masked_values(selective_scores, mask.byte(), -1e20)
 
         # Shape: (batch_size, max_num_items_to_keep, 1)
-        _, top_indices = scores.topk(max_items_to_keep, 1)
+        _, top_indices = selective_scores.topk(max_items_to_keep, 1)
+        #print(top_indices[0])
+        if relation_labels is not None:
+            for i in _gold_idx_dict:
+                for idx in _gold_idx_dict[i]:
+                    if not idx in top_indices.squeeze(-1)[i].tolist():
+                        #print(i, idx, top_indices.squeeze(-1)[i])
+                        #print(selective_scores[i, idx], selective_scores[i, top_indices.squeeze(-1)[i, 0]])
 
         # Mask based on number of items to keep for each sentence.
         # Shape: (batch_size, max_num_items_to_keep)
