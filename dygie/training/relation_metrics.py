@@ -18,17 +18,21 @@ class RelationMetrics(Metric):
 
         self._th_def = default_th
         self._thresholds = thresholds
-        self._threshold_candidates = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9]
+        self._threshold_candidates = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9, 0.01, 0.99]
         self.outfile = "./dygie_best_threshold.txt"
         
         self.precision, self.recall, self.f1 = 0, 0, 0
-        self.update_counter, self.update_frequency = 0, 1000
+        self.update_counter, self.update_frequency = 0, 100
         self.reset()
 
     @overrides
     def __call__(self, predicted_relation_list, metadata_list):
         for predicted_relations, metadata in zip(predicted_relation_list, metadata_list):
             gold_relations = metadata["relation_dict"]
+            if "annotated_predicates" in metadata:
+                annotated = metadata["annotated_predicates"]
+            else:
+                annotated = list(self._label_dict.keys())
             for labels in gold_relations.values():
                 for label in labels:
                     self._gold_per_relation[self._label_dict[label]] += 1
@@ -36,6 +40,7 @@ class RelationMetrics(Metric):
 
             # predicted_relations Dict[(Span, Span)] -> List[Tuple(label, score), ...],
             for (span_1, span_2), label_list in predicted_relations.items():
+                label_list = [item for item in label_list if item[0] in annotated]
                 ix = (span_1, span_2)
                 if ix in gold_relations:
                     #print("correct span!", gold_relations[ix], label)

@@ -293,7 +293,8 @@ class IEJsonReader(DatasetReader):
                         groups=groups,
                         start_ix=start_ix,
                         end_ix=end_ix,
-                        sentence_num=sentence_num)
+                        sentence_num=sentence_num,
+                        annotated_predicates=annotated_predicates)
         metadata_field = MetadataField(metadata)
 
         if True:
