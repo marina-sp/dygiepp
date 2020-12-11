@@ -18,7 +18,7 @@ local params = {
 
   // specify vocabulary:
   vocab_path: "data/weak_sv/vocabulary",
-  //max_examples_per_relation: 2000,
+  max_examples_per_relation: 10000,
 
   // If debugging, don't load expensive embedding files.
   debug: false,
@@ -66,7 +66,7 @@ local params = {
   coref_max_antecedents: 100,
 
   // Relation settings.
-  relation_spans_per_word: 0.5,
+  relation_spans_per_word: 0.3,
   relation_positive_label_weight: 1.0,
 
   // Event settings.
@@ -75,9 +75,9 @@ local params = {
   events_positive_label_weight: 1.0,
 
   // Model training
-  batch_size: 2,
+  batch_size: 8,
   grad_clip: 5,
-  num_epochs: 1,
+  num_epochs: 5,
   patience: 10,
   optimizer: {
     type: "bert_adam",

@@ -140,10 +140,10 @@ function(p) {
     },
     [if use_bert then "bert"]: {
       type: "bert-pretrained",
-      pretrained_model: (if p.use_bert_base then "bert-base-cased"
+      pretrained_model: (if p.use_bert_base then "bert-base-uncased"
                          else if p.use_bert_large then "bert-large-cased"
                          else "pretrained/scibert_scivocab_cased/vocab.txt"),
-      do_lowercase: false,
+      do_lowercase: true,
       use_starting_offsets: true
     }
   },
@@ -183,7 +183,7 @@ function(p) {
       },
       [if use_bert then "bert"]: {
         type: "bert-pretrained",
-        pretrained_model: (if p.use_bert_base then "bert-base-cased"
+        pretrained_model: (if p.use_bert_base then "bert-base-uncased"
                            else if p.use_bert_large then "bert-large-cased"
                            else "pretrained/scibert_scivocab_cased/weights.tar.gz"),
         requires_grad: p.finetune_bert
@@ -245,6 +245,7 @@ function(p) {
     max_span_width: p.max_span_width,
     context_width: p.context_width,
     debug: getattr(p, "debug", false),
+    //lazy: true,
     max_examples: getattr(p, "max_examples_per_relation", 0),
   },
   train_data_path: std.extVar("ie_train_data_path"),
