@@ -159,10 +159,10 @@ class Pruner(torch.nn.Module):
             #print("Relevant span idx:", len(_gold_idx[0]))
             #print(gold_mask.shape)
             # set score values to be selected for sure;
-            # scores are logits, so 1 would be definitely at top
+            # scores are logits, so 1e20 should be plenty positive
             #print(selective_scores.shape)
 
-            selective_scores[gold_mask] = 1
+            selective_scores[gold_mask] = 1e20
 
             # Make sure that all relevant spans will be passed further
             #print(gold_mask.sum(-1))
@@ -187,9 +187,9 @@ class Pruner(torch.nn.Module):
         if relation_labels is not None:
             for i in _gold_idx_dict:
                 for idx in _gold_idx_dict[i]:
-                    if not idx in top_indices.squeeze(-1)[i].tolist():
-                        #print(i, idx, top_indices.squeeze(-1)[i])
-                        #print(selective_scores[i, idx], selective_scores[i, top_indices.squeeze(-1)[i, 0]])
+                    if not idx in top_indices.squeeze(-1)[i].tolist():                       
+                        print(i, idx, top_indices.squeeze(-1)[i])
+                        print(selective_scores[i, idx], selective_scores[i, top_indices.squeeze(-1)[i, 0]])
 
         # Mask based on number of items to keep for each sentence.
         # Shape: (batch_size, max_num_items_to_keep)
