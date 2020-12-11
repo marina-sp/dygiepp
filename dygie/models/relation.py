@@ -40,8 +40,12 @@ class RelationExtractor(Model):
                  rel_prop_dropout_f: float = 0.0,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  positive_label_weight: float = 1.0,
-                 regularizer: Optional[RegularizerApplicator] = None) -> None:
+                 regularizer: Optional[RegularizerApplicator] = None,
+                 separate_span_loss: bool = False,
+                 force_gold: bool = False) -> None:
         super(RelationExtractor, self).__init__(vocab, regularizer)
+
+        self.span_loss = separate_span_loss
 
         # Need to hack this for cases where there's no relation data. It breaks Ulme's code.
         self._n_labels = max(vocab.get_vocab_size("relation_labels"), 1)
@@ -53,7 +57,9 @@ class RelationExtractor(Model):
         feedforward_scorer = torch.nn.Sequential(
             TimeDistributed(mention_feedforward),
             TimeDistributed(torch.nn.Linear(mention_feedforward.get_output_dim(), 1)))
-        self._mention_pruner = Pruner(feedforward_scorer)
+        self._mention_pruner = Pruner(feedforward_scorer,
+                                      force_gold=force_gold,
+                                      span_loss=separate_span_loss)
 
         # Relation scorer.
         self._relation_feedforward = relation_feedforward
@@ -62,7 +68,7 @@ class RelationExtractor(Model):
         self._spans_per_word = spans_per_word
 
         # todo(marinasp) Parametrize default threshold value.
-        self._thresholds = torch.nn.Parameter(data=torch.FloatTensor([0.5]* self._n_labels),
+        self._thresholds = torch.nn.Parameter(data=torch.FloatTensor([0.5] * self._n_labels),
                                              requires_grad=False)
 
         # TODO(dwadden) Add code to compute relation F1.
@@ -127,7 +133,7 @@ class RelationExtractor(Model):
 
         (top_span_embeddings, top_span_mention_scores,
          num_spans_to_keep, top_span_mask,
-         top_span_indices, top_spans) = self._prune_spans(spans, span_mask, span_embeddings, sentence_lengths,
+         top_span_indices, top_spans, selection_loss) = self._prune_spans(spans, span_mask, span_embeddings, sentence_lengths,
                                                           relation_labels=relation_labels)
 
         relation_scores = self.get_relation_scores(top_span_embeddings,
@@ -140,7 +146,7 @@ class RelationExtractor(Model):
                        "num_spans_to_keep": num_spans_to_keep,
                        "top_span_indices": top_span_indices,
                        "top_span_mask": top_span_mask,
-                       "loss": 0}
+                       "loss": selection_loss if self.span_loss else 0}
 
         return output_dict
 
@@ -152,7 +158,7 @@ class RelationExtractor(Model):
         num_spans_to_keep = torch.ceil(sentence_lengths.float() * self._spans_per_word).long()
 
         (top_span_embeddings, top_span_mask,
-         top_span_indices, top_span_mention_scores, num_spans_kept) = self._mention_pruner(
+         top_span_indices, top_span_mention_scores, num_spans_kept, selection_loss) = self._mention_pruner(
              span_embeddings, span_mask, num_spans_to_keep,
             relation_labels=relation_labels if self.training else None)
 
@@ -163,7 +169,7 @@ class RelationExtractor(Model):
                                               top_span_indices,
                                               flat_top_span_indices)
 
-        return top_span_embeddings, top_span_mention_scores, num_spans_to_keep, top_span_mask, top_span_indices, top_spans
+        return top_span_embeddings, top_span_mention_scores, num_spans_to_keep, top_span_mask, top_span_indices, top_spans, selection_loss
 
 
     def relation_propagation(self, output_dict):
@@ -213,7 +219,7 @@ class RelationExtractor(Model):
             self._candidate_recall(predictions, metadata)
             self._relation_metrics(predictions, metadata)
 
-            output_dict["loss"] = cross_entropy
+            output_dict["loss"] += cross_entropy
         
         # (marinasp): if loaded from archive (=evaluation), then collect relations for output
         if self._loaded:
@@ -324,8 +330,9 @@ class RelationExtractor(Model):
 
         # Add the mention scores for each of the candidates.
 
-        relation_scores += (top_span_mention_scores.unsqueeze(-1) +
-                            top_span_mention_scores.transpose(1, 2).unsqueeze(-1))
+        if not self.span_loss:
+            relation_scores += (top_span_mention_scores.unsqueeze(-1) +
+                                top_span_mention_scores.transpose(1, 2).unsqueeze(-1))
 
         #shape = [relation_scores.size(0), relation_scores.size(1), relation_scores.size(2), 1]
         #dummy_scores = relation_scores.new_zeros(*shape)
