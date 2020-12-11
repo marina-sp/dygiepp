@@ -43,7 +43,9 @@ class Pruner(torch.nn.Module):
         If given, only keep items that score at least this high.
     """
     def __init__(self, scorer: torch.nn.Module, entity_beam: bool = False, gold_beam: bool = False,
-                 min_score_to_keep: float = None) -> None:
+                 min_score_to_keep: float = None,
+                 force_gold: bool = False,
+                 span_loss: bool = False) -> None:
         super().__init__()
         # If gold beam is on, then entity beam must be off and min_score_to_keep must be None.
         assert not (gold_beam and ((min_score_to_keep is not None) or entity_beam))
@@ -51,6 +53,10 @@ class Pruner(torch.nn.Module):
         self._entity_beam = entity_beam
         self._gold_beam = gold_beam
         self._min_score_to_keep = min_score_to_keep
+        self.loss = torch.nn.BCEWithLogitsLoss()
+
+        self._force_gold = force_gold
+        self._do_span_loss = span_loss
 
     @overrides
     def forward(self, # pylint: disable=arguments-differ
@@ -138,7 +144,7 @@ class Pruner(torch.nn.Module):
 
         selective_scores = scores.detach().clone()
         # If relations are provided, make sure to take the scores for relevant spans.
-        if relation_labels is not None:
+        if relation_labels is not None and (self._force_gold or self._do_span_loss):
             #print(relation_labels.shape)
 
             # span is relevant if it is engaged in any relation with any other span (two dims)
@@ -162,13 +168,17 @@ class Pruner(torch.nn.Module):
             # scores are logits, so 1e20 should be plenty positive
             #print(selective_scores.shape)
 
-            selective_scores[gold_mask] = 1e20
+            if self._force_gold:
+                selective_scores[gold_mask] = 1e20
 
             # Make sure that all relevant spans will be passed further
             #print(gold_mask.sum(-1))
             #print(num_items_to_keep)
             num_items_to_keep = torch.max(num_items_to_keep, gold_mask.sum(-1))
             #print(num_items_to_keep)
+            selection_loss = self.loss(scores.squeeze(-1), gold_mask.float())
+        else:
+            selection_loss = 0
 
             # Always keep at least one item to avoid edge case with empty matrix.
         max_items_to_keep = max(num_items_to_keep.max().item(), 1)
@@ -184,12 +194,12 @@ class Pruner(torch.nn.Module):
         # Shape: (batch_size, max_num_items_to_keep, 1)
         _, top_indices = selective_scores.topk(max_items_to_keep, 1)
         #print(top_indices[0])
-        if relation_labels is not None:
-            for i in _gold_idx_dict:
-                for idx in _gold_idx_dict[i]:
-                    if not idx in top_indices.squeeze(-1)[i].tolist():                       
-                        print(i, idx, top_indices.squeeze(-1)[i])
-                        print(selective_scores[i, idx], selective_scores[i, top_indices.squeeze(-1)[i, 0]])
+        # if relation_labels is not None:
+        #     for i in _gold_idx_dict:
+        #         for idx in _gold_idx_dict[i]:
+        #             if not idx in top_indices.squeeze(-1)[i].tolist():
+        #                 print(i, idx, top_indices.squeeze(-1)[i])
+        #                 print(selective_scores[i, idx], selective_scores[i, top_indices.squeeze(-1)[i, 0]])
 
         # Mask based on number of items to keep for each sentence.
         # Shape: (batch_size, max_num_items_to_keep)
@@ -231,4 +241,4 @@ class Pruner(torch.nn.Module):
         # Shape: (batch_size, max_num_items_to_keep, 1)
         top_scores = util.batched_index_select(scores, top_indices, flat_top_indices)
 
-        return top_embeddings, top_mask, top_indices, top_scores, num_items_to_keep
+        return top_embeddings, top_mask, top_indices, top_scores, num_items_to_keep, selection_loss

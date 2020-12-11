@@ -17,22 +17,22 @@ local params = {
   target: "rel",
 
   // specify vocabulary:
-  vocab_path: "data/weak_sv/vocabulary",
-  max_examples_per_relation: 10000,
+  vocab_path: "vocabulary_kn",
+  //max_examples_per_relation: 2000,
 
   // If debugging, don't load expensive embedding files.
-  debug: false,
+  debug: true,
   n_debug_docs: 10,
 
   // Specifies the token-level features that will be created.
   use_glove: false,
-  use_char: false,
+  use_char: true,
   use_elmo: false,
   use_attentive_span_extractor: false,
-  use_bert_base: true,
+  use_bert_base: false,
   use_bert_large: false,
   use_scibert: false,
-  finetune_bert: true,
+  finetune_bert: false,
   rel_prop: 0,
   coref_prop: 0,
   context_width: 3,
@@ -40,13 +40,13 @@ local params = {
   rel_prop_dropout_f: 0.2,
 
   // Specifies the model parameters.
-  lstm_hidden_size: 200,
+  lstm_hidden_size: 20,
   lstm_n_layers: 1,
   feature_size: 20,
   feedforward_layers: 2,
   char_n_filters: 50,
-  feedforward_dim: 200,
-  max_span_width: 5,
+  feedforward_dim: 10,
+  max_span_width: 2,
   feedforward_dropout: 0.4,
   lexical_dropout: 0.5,
   lstm_dropout: 0.0,
@@ -63,13 +63,13 @@ local params = {
 
   // Coref settings.
   coref_spans_per_word: 0.3,
-  coref_max_antecedents: 100,
+  coref_max_antecedents: 10,
 
   // Relation settings.
-  relation_spans_per_word: 0.3,
+  relation_spans_per_word: 0.5,
   relation_positive_label_weight: 1.0,
   span_loss: false,
-  force_gold_spans: true,
+  force_gold_spans: false,
 
   // Event settings.
   trigger_spans_per_word: 0.3,
@@ -77,9 +77,9 @@ local params = {
   events_positive_label_weight: 1.0,
 
   // Model training
-  batch_size: 8,
+  batch_size: 4,
   grad_clip: 5,
-  num_epochs: 5,
+  num_epochs: 2,
   patience: 10,
   optimizer: {
     type: "bert_adam",

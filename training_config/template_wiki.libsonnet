@@ -291,7 +291,9 @@ function(p) {
         rel_prop_dropout_f: p.rel_prop_dropout_f,
         rel_prop: p.rel_prop,
         span_emb_dim: span_emb_dim,
-        initializer: module_initializer
+        initializer: module_initializer,
+        separate_span_loss: p.span_loss,
+        force_gold: p.force_gold_spans,
       },
       events: {
         trigger_spans_per_word: p.trigger_spans_per_word,
