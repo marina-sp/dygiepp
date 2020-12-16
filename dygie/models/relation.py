@@ -42,10 +42,13 @@ class RelationExtractor(Model):
                  positive_label_weight: float = 1.0,
                  regularizer: Optional[RegularizerApplicator] = None,
                  separate_span_loss: bool = False,
-                 force_gold: bool = False) -> None:
+                 force_gold_spans_train: bool = False,
+                 force_gold_spans_eval: bool = False) -> None:
         super(RelationExtractor, self).__init__(vocab, regularizer)
 
         self.span_loss = separate_span_loss
+        self.force_train_spans = force_gold_spans_train
+        self.force_eval_spans = force_gold_spans_eval
 
         # Need to hack this for cases where there's no relation data. It breaks Ulme's code.
         self._n_labels = max(vocab.get_vocab_size("relation_labels"), 1)
@@ -58,7 +61,6 @@ class RelationExtractor(Model):
             TimeDistributed(mention_feedforward),
             TimeDistributed(torch.nn.Linear(mention_feedforward.get_output_dim(), 1)))
         self._mention_pruner = Pruner(feedforward_scorer,
-                                      force_gold=force_gold,
                                       span_loss=separate_span_loss)
 
         # Relation scorer.
@@ -160,7 +162,9 @@ class RelationExtractor(Model):
         (top_span_embeddings, top_span_mask,
          top_span_indices, top_span_mention_scores, num_spans_kept, selection_loss) = self._mention_pruner(
              span_embeddings, span_mask, num_spans_to_keep,
-            relation_labels=relation_labels if self.training else None)
+            relation_labels=relation_labels,
+            force_spans = (self.training and self.force_train_spans) or (not self.training and self.force_eval_spans)
+            )
 
         top_span_mask = top_span_mask.unsqueeze(-1)
 

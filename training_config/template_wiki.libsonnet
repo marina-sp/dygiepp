@@ -293,7 +293,8 @@ function(p) {
         span_emb_dim: span_emb_dim,
         initializer: module_initializer,
         separate_span_loss: p.span_loss,
-        force_gold: p.force_gold_spans,
+        force_gold_train: p.force_gold_spans_train,
+	force_gold_eval: p.force_gold_spans_eval
       },
       events: {
         trigger_spans_per_word: p.trigger_spans_per_word,
