@@ -44,7 +44,6 @@ class Pruner(torch.nn.Module):
     """
     def __init__(self, scorer: torch.nn.Module, entity_beam: bool = False, gold_beam: bool = False,
                  min_score_to_keep: float = None,
-                 force_gold: bool = False,
                  span_loss: bool = False) -> None:
         super().__init__()
         # If gold beam is on, then entity beam must be off and min_score_to_keep must be None.
@@ -55,7 +54,6 @@ class Pruner(torch.nn.Module):
         self._min_score_to_keep = min_score_to_keep
         self.loss = torch.nn.BCEWithLogitsLoss()
 
-        self._force_gold = force_gold
         self._do_span_loss = span_loss
 
     @overrides
@@ -169,7 +167,7 @@ class Pruner(torch.nn.Module):
             # scores are logits, so 1e20 should be plenty positive
             #print(selective_scores.shape)
 
-            if self._force_gold:
+            if force_spans:
                 selective_scores[gold_mask] = 1e20
 
             # Make sure that all relevant spans will be passed further
@@ -180,6 +178,7 @@ class Pruner(torch.nn.Module):
             selection_loss = self.loss(scores.squeeze(-1), gold_mask.float())
         else:
             selection_loss = 0
+            _gold_idx_dict = {}
 
             # Always keep at least one item to avoid edge case with empty matrix.
         max_items_to_keep = max(num_items_to_keep.max().item(), 1)

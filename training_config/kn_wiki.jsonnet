@@ -17,7 +17,7 @@ local params = {
   target: "rel",
 
   // specify vocabulary:
-  vocab_path: "data/weak_sv/vocabulary",
+  vocab_path: "vocabulary_kn",
   max_examples_per_relation: 2000,
 
   // If debugging, don't load expensive embedding files.

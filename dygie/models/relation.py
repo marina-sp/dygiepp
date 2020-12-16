@@ -47,8 +47,8 @@ class RelationExtractor(Model):
         super(RelationExtractor, self).__init__(vocab, regularizer)
 
         self.span_loss = separate_span_loss
-        self.force_train_spans = force_gold_spans_train
-        self.force_eval_spans = force_gold_spans_eval
+        self.force_gold_spans_train = force_gold_spans_train
+        self.force_gold_spans_eval = force_gold_spans_eval
 
         # Need to hack this for cases where there's no relation data. It breaks Ulme's code.
         self._n_labels = max(vocab.get_vocab_size("relation_labels"), 1)
@@ -163,8 +163,10 @@ class RelationExtractor(Model):
          top_span_indices, top_span_mention_scores, num_spans_kept, selection_loss) = self._mention_pruner(
              span_embeddings, span_mask, num_spans_to_keep,
             relation_labels=relation_labels,
-            force_spans = (self.training and self.force_train_spans) or (not self.training and self.force_eval_spans)
-            )
+            force_spans=(
+                    (self.training and self.force_gold_spans_train)
+                    or (not self.training and self.force_gold_spans_eval)
+            ))
 
         top_span_mask = top_span_mask.unsqueeze(-1)
 
