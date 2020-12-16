@@ -50,7 +50,7 @@ class MultiTaskAdjacencyField(Field[torch.Tensor]):
         self,
         indices: List[Tuple[int, int]],
         sequence_field: SequenceField,
-        labels: List[str] = None,
+        labels: List[List[str]] = None,
         label_namespace: str = "labels",
         padding_value: int = -1,
         annotated_predicates: List[str] = None
