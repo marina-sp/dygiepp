@@ -18,7 +18,7 @@ local params = {
 
   // specify vocabulary:
   vocab_path: "data/weak_sv/vocabulary",
-  max_examples_per_relation: 10000,
+  max_examples_per_relation: 2000,
 
   // If debugging, don't load expensive embedding files.
   debug: false,
@@ -68,8 +68,9 @@ local params = {
   // Relation settings.
   relation_spans_per_word: 0.3,
   relation_positive_label_weight: 1.0,
-  span_loss: false,
-  force_gold_spans: true,
+  span_loss: true,
+  force_gold_spans_train: false,
+  force_gold_spans_eval: true,
 
   // Event settings.
   trigger_spans_per_word: 0.3,

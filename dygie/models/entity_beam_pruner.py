@@ -65,6 +65,7 @@ class Pruner(torch.nn.Module):
                 num_items_to_keep: Union[int, torch.LongTensor],
                 class_scores: torch.FloatTensor = None,
                 relation_labels: torch.LongTensor = None,
+                force_spans: bool = False,
                 gold_labels: torch.long = None) -> Tuple[torch.FloatTensor, torch.LongTensor,
                                                          torch.LongTensor, torch.FloatTensor]:
         """
@@ -144,7 +145,7 @@ class Pruner(torch.nn.Module):
 
         selective_scores = scores.detach().clone()
         # If relations are provided, make sure to take the scores for relevant spans.
-        if relation_labels is not None and (self._force_gold or self._do_span_loss):
+        if relation_labels is not None and (force_spans or self._do_span_loss):
             #print(relation_labels.shape)
 
             # span is relevant if it is engaged in any relation with any other span (two dims)
