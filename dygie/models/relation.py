@@ -43,7 +43,8 @@ class RelationExtractor(Model):
                  regularizer: Optional[RegularizerApplicator] = None,
                  separate_span_loss: bool = False,
                  force_gold_spans_train: bool = False,
-                 force_gold_spans_eval: bool = False) -> None:
+                 force_gold_spans_eval: bool = False,
+                 decoding_file: str = "") -> None:
         super(RelationExtractor, self).__init__(vocab, regularizer)
 
         self.span_loss = separate_span_loss
@@ -77,7 +78,7 @@ class RelationExtractor(Model):
         self._candidate_recall = CandidateRecall()
         self._relation_metrics = RelationMetrics(self._thresholds.data, label_dict=vocab.get_token_to_index_vocabulary("relation_labels"))
 
-        self._relation_collector = RelationFormatter()
+        self._relation_collector = RelationFormatter(log_file=decoding_file)
 
         bce = torch.nn.BCEWithLogitsLoss()  #reduction="sum")
         def masked_loss(logits, labels):
@@ -260,15 +261,20 @@ class RelationExtractor(Model):
     @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]: 
         # tune only validating during training (not in evalution mode)
-        precision, recall, f1 = self._relation_metrics.get_metric(reset, tune=(not self._loaded) and (not self.training))
+        precision, recall, f1, thresholds = self._relation_metrics.get_metric(reset, tune=(not self._loaded) and (not self.training))
         candidate_recall = self._candidate_recall.get_metric(reset)
         if self._loaded and (not self.training):
             self._relation_collector.get_metric(reset, write=True)
 
-        return {"rel_precision": precision,
+        output_dict = {"rel_precision": precision,
                 "rel_recall": recall,
                 "rel_f1": f1,
-                "rel_span_recall": candidate_recall}
+                "rel_span_recall": candidate_recall,
+        }
+        output_dict.update({
+            f"rel_threshold_{idx}": thresholds[idx] for idx in range(len(thresholds))
+        })
+        return output_dict
 
     def _decode_sentence(self, top_spans, predicted_relations, num_spans_to_keep):
         # TODO(dwadden) speed this up?

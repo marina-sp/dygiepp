@@ -15,6 +15,7 @@ ie_train_data_path=$data_root/kn.train.train.json \
     ie_dev_data_path=$data_root/kn.train.dev.json \
     ie_test_data_path=$data_root/kn.dev.json \
     cuda_device=$cuda_device \
+    decoding_file=./models/$experiment_name/predictions.txt \
     allennlp train $config_file \
     --cache-directory $data_root/cached \
     --serialization-dir ./models/$experiment_name \

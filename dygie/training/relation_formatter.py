@@ -1,11 +1,12 @@
 from overrides import overrides
 from allennlp.training.metrics.metric import Metric
+import logging
 
 class RelationFormatter(Metric):
 
-    def __init__(self):
+    def __init__(self, log_file=None):
         self.reset()
-        self.outfile = "./dygie_prediction.txt"
+        self.outfile = log_file
 
     @overrides
     def __call__(self, predicted_relation_list, metadata_list):
@@ -24,6 +25,7 @@ class RelationFormatter(Metric):
                     true_label = 1
                 else:
                     # no relation for this span is expected
+                    # todo: differentiate false predictions from unannotated
                     true_label = 0
 
                 self.relations.setdefault((sent_id, ix[0], ix[1]), []).append(
@@ -93,7 +95,7 @@ class RelationFormatter(Metric):
                     fn.append(label)
 
             #assert (len(fp_span) == 0) or (len(tp+fp+fn) == 0)
-            print(len(fp_span), len(tp+fp+fn))
+            #print(len(fp_span), len(tp+fp+fn))
 
             with open(self.outfile, "a") as f:
                 f.write("\n")

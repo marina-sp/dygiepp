@@ -69,7 +69,8 @@ local params = {
   relation_spans_per_word: 0.5,
   relation_positive_label_weight: 1.0,
   span_loss: false,
-  force_gold_spans: false,
+  force_gold_spans_train: true,
+  force_gold_spans_eval: true,
 
   // Event settings.
   trigger_spans_per_word: 0.3,
@@ -79,7 +80,7 @@ local params = {
   // Model training
   batch_size: 4,
   grad_clip: 5,
-  num_epochs: 2,
+  num_epochs: 10,
   patience: 10,
   optimizer: {
     type: "bert_adam",

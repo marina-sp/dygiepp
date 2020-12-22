@@ -409,3 +409,7 @@ class DyGIE(Model):
         print("normal load", model._relation._loaded)
         return model
 
+    def load_state_dict(self, *args, **kwargs):
+        self._relation._loaded = True
+        super().load_state_dict(*args, **kwargs)
+

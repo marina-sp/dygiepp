@@ -63,7 +63,7 @@ class RelationMetrics(Metric):
             # tune only at the end of epoch
             print("tuned threshold!")
             self._tune_threshold()
-            self._save_threshold()
+            #self._save_threshold()
         
         # getting a metric is time-consuming, so update only from time to time
         if reset or (self.update_counter % self.update_frequency == 0):
@@ -86,7 +86,7 @@ class RelationMetrics(Metric):
         if reset:
             self.reset()
 
-        return self.precision, self.recall, self.f1
+        return self.precision, self.recall, self.f1, self._thresholds.tolist()
 
     @overrides
     def reset(self):

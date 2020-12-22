@@ -235,7 +235,7 @@ function(p) {
 
 
   // The model
-
+  evaluate_on_test: true,
   random_seed: getattr(p, "random_seed", 13370),
   numpy_seed: getattr(p, "numpy_seed", 1337),
   pytorch_seed: getattr(p, "pytorch_seed", 133),
@@ -294,7 +294,8 @@ function(p) {
         initializer: module_initializer,
         separate_span_loss: p.span_loss,
         force_gold_spans_train: p.force_gold_spans_train,
-	    force_gold_spans_eval: p.force_gold_spans_eval
+	    force_gold_spans_eval: p.force_gold_spans_eval,
+	    decoding_file: std.extVar("decoding_file")
       },
       events: {
         trigger_spans_per_word: p.trigger_spans_per_word,
