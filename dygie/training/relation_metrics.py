@@ -70,6 +70,7 @@ class RelationMetrics(Metric):
         
         # getting a metric is time-consuming, so update only from time to time
         if reset or (self.update_counter % self.update_frequency == 0):
+            logger.info(f"using thresholds {self._thresholds.tolist()}")
             total_predicted = 0
             total_matched = 0
 
