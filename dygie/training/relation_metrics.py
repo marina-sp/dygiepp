@@ -1,4 +1,5 @@
 from overrides import overrides
+import logging
 
 from allennlp.training.metrics.metric import Metric
 
@@ -6,6 +7,7 @@ from dygie.training.f1 import compute_f1
 
 import numpy as np
 from collections import defaultdict
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class RelationMetrics(Metric):
     """
@@ -52,7 +54,7 @@ class RelationMetrics(Metric):
                         self._scores_per_relation[label_idx].append((score, true_label))
 
                 else:
-                    # predictions on false prediction should be accounted as false positives
+                    # predictions on false spans should be accounted as false positives
                     for label, label_idx, score in label_list:
                         true_label = 0
                         self._scores_per_relation[label_idx].append((score, true_label))
@@ -61,8 +63,9 @@ class RelationMetrics(Metric):
     def get_metric(self, reset=False, tune=False):
         if tune and reset:
             # tune only at the end of epoch
-            print("tuned threshold!")
+            logger.info("tuned threshold!")
             self._tune_threshold()
+            logger.info(f"new thresholds are {self._thresholds.tolist()}")
             #self._save_threshold()
         
         # getting a metric is time-consuming, so update only from time to time
